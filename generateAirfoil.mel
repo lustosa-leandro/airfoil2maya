@@ -1,0 +1,64 @@
+
+global proc generateAirfoil(int $CHORD, int $WINGSPAN, string $fileFOIL) {
+// this code in only valid for SELIG FORMAT DAT files!!
+
+    $fileID = fopen($fileFOIL,"r");
+
+    // count how many 2D vertex points are in the airfoil .dat file
+    // (including the repeated one in the end)
+
+    int $number_of_lines = -1;
+
+    string $nextLine = `fgetline $fileID`;
+    while ( size($nextLine) > 0 ) {
+        $nextLine = `fgetline $fileID`;
+        $number_of_lines = $number_of_lines + 1;
+    }
+
+    fclose($fileID);
+
+    // draw the airfoil in 3d!!
+
+    $fileID = fopen($fileFOIL,"r");
+
+    int $vertex_number = $number_of_lines - 1; // do not repeat the last one!
+    int $cube_divisions = $vertex_number/2-1;
+    $vertex_number = 2*$cube_divisions+1; // neglect the mod2 part
+    int $first_pass = 1;
+
+    string $nextSecLine;
+
+    polyCube -w 1 -h 1 -d $WINGSPAN -sx $cube_divisions -sy 1 -sz 1 -ax 0 1 0 -cuv 4 -ch 1 -n "Airfoil";
+
+    $nextLine = `fgetline $fileID`;
+    while ( size($nextLine) > 0 ) {
+        $nextLine = `fgetword $fileID`;
+        // check if we are in upper surface (of cube, not airfoil!)
+        if ($vertex_number > $cube_divisions && $first_pass > 0) {
+            select -r Airfoil.vtx[$vertex_number];
+            $nextSecLine = `fgetword $fileID`;
+            float $x = $CHORD*(float)$nextLine;
+            float $y = $CHORD*(float)$nextSecLine; 
+            move -a $x $y ($WINGSPAN/2) ;        
+            select -r Airfoil.vtx[$vertex_number+$cube_divisions+1];
+            move -a $x $y (-$WINGSPAN/2) ;        
+            $vertex_number = $vertex_number -1;
+        } else { // we are in lower surface (of cube, not airfoil!)
+            if ($vertex_number == $cube_divisions && $first_pass > 0) {
+                $vertex_number = 0;
+                $first_pass = -1;
+            } 
+            if ($vertex_number <= $cube_divisions) {
+                select -r Airfoil.vtx[$vertex_number];
+                $nextSecLine = `fgetword $fileID`;
+                float $x = $CHORD*(float)$nextLine;
+                float $y = $CHORD*(float)$nextSecLine; 
+                move -a $x $y ($WINGSPAN/2) ;    
+                select -r Airfoil.vtx[$vertex_number+3*$cube_divisions+3];
+                move -a $x $y (-$WINGSPAN/2) ;       
+                $vertex_number = $vertex_number +1; 
+            }      
+        }
+    }
+
+}
